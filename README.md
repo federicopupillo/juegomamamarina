@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Mamá Marina: Misión Buenos Aires</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            background-color: #202020;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Press Start 2P', cursive;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom, #6a89cc, #b8e994); 
+            overflow: hidden;
+        }
+
+        canvas {
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background: transparent;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hud {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            color: #fff;
+            text-shadow: 2px 2px 0px #000;
+            font-size: 14px;
+            z-index: 5;
+            width: 100%;
+            box-sizing: border-box;
+            pointer-events: auto;
+        }
+
+        .controls {
+            pointer-events: auto;
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.5);
+            border: 2px solid #333;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s;
+        }
+
+        .btn:active {
+            background: rgba(255, 255, 255, 0.8);
+            transform: scale(0.95);
+        }
+
+        .btn-long {
+            width: 80px;
+            border-radius: 15px;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            pointer-events: auto;
+            z-index: 10;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 { font-size: 20px; margin-bottom: 20px; line-height: 1.5; color: #74b9ff; text-shadow: 3px 3px 0 #000; }
+        p { font-size: 12px; margin-bottom: 25px; line-height: 1.6; max-width: 90%; color: #dcdde1; }
+        
+        .action-btn {
+            background: #0984e3;
+            border: 4px solid #fff;
+            color: white;
+            padding: 15px 25px;
+            font-family: inherit;
+            font-size: 14px;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 5px 0 #06528d;
+            transition: all 0.1s;
+        }
+        .action-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #06528d;
+        }
+
+        #muteBtn {
+            cursor: pointer;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid white;
+        }
+
+        @media (min-width: 768px) {
+            .controls { display: none; }
+            h1 { font-size: 32px; }
+            p { font-size: 16px; }
+            .action-btn { font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="ui-layer">
+        <div class="hud">
+            <div style="display:flex; flex-direction:column; gap:5px;">
+                <div id="scoreDisplay">💸 Pesos: $0</div>
+                <div id="levelDisplay">📍 Buenos Aires</div>
+            </div>
+            <div id="muteBtn" onclick="toggleMute()">🔊 Sonido: ON</div>
+        </div>
+
+        <div class="controls" id="touchControls">
+            <div style="display: flex; gap: 15px;">
+                <div class="btn" id="btnLeft">⬅️</div>
+                <div class="btn" id="btnRight">➡️</div>
+            </div>
+            <div class="btn btn-long" id="btnJump">Saltar</div>
+        </div>
+    </div>
+
+    <!-- Pantalla Inicio -->
+    <div id="startScreen" class="overlay">
+        <h1>🏥 MAMÁ MARINA<br>EN BUENOS AIRES 🇦🇷</h1>
+        <p>Marina, tu nene necesita pañales... ¡y vos querés viajar!</p>
+        <p>Esquiva los <b><span style="color:#ff7675">gastos del nene</span></b> y tus propios <b><span style="color:#a29bfe">lujos</span></b>.</p>
+        <p style="color: yellow; font-size: 10px;">PC: Flechas / Móvil: Botones</p>
+        <button class="action-btn" onclick="startGame()">¡Arrancar la guardia! 🎵</button>
+    </div>
+
+    <!-- Pantalla Game Over -->
+    <div id="gameOverScreen" class="overlay hidden">
+        <h1 style="color: #ff7675;">¡SIN FONDOS! 📉</h1>
+        <p id="deathReason">Marina, la inflación te ganó.</p>
+        <button class="action-btn" onclick="resetGame()">Probar otro mes</button>
+    </div>
+
+    <!-- Pantalla Victoria -->
+    <div id="winScreen" class="overlay hidden">
+        <h1 style="color: #55efc4;">¡LLEGASTE MARINA! ✅</h1>
+        <p>Pagaste todo y te sobró para un café.</p>
+        <div id="finalScore" style="margin-bottom: 20px; font-size: 18px; color: gold;"></div>
+        <button class="action-btn" onclick="resetGame()">Siguiente Mes</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // --- AUDIO SYSTEM (Mario Style) ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let isMuted = false;
+    let noteIndex = 0;
+
+    // Frecuencias de notas
+    const N = {
+        C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
+        C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00, B5: 987.77,
+        G3: 196.00
+    };
+
+    // Melodía "Retro Platformer"
+    const melody = [
+        {f: N.E5, d: 0.15}, {f: 0, d: 0.05}, {f: N.E5, d: 0.15}, {f: 0, d: 0.05}, {f: N.E5, d: 0.15}, {f: 0, d: 0.15},
+        {f: N.C5, d: 0.15}, {f: N.E5, d: 0.15}, {f: 0, d: 0.15},
+        {f: N.G5, d: 0.3}, {f: 0, d: 0.3}, 
+        {f: N.G4, d: 0.3}, {f: 0, d: 0.3},
+        {f: N.C5, d: 0.3}, {f: N.G4, d: 0.3}, {f: N.E4, d: 0.3},
+        {f: N.A4, d: 0.2}, {f: N.B4, d: 0.2}, {f: N.A4, d: 0.1}, {f: N.A4, d: 0.2},
+        {f: N.G4, d: 0.15}, {f: N.E5, d: 0.15}, {f: N.G5, d: 0.15}, {f: N.A5, d: 0.2}, 
+        {f: N.F5, d: 0.15}, {f: N.G5, d: 0.15},
+        {f: 0, d: 0.1}
+    ];
+
+    function playTone(freq, dur, type = 'square', vol = 0.1) {
+        if (isMuted || audioCtx.state === 'suspended') return;
+        
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + dur);
+    }
+
+    function startMusic() {
+        if (isMuted) return;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        
+        noteIndex = 0;
+        let nextTime = audioCtx.currentTime;
+
+        function scheduler() {
+            if (gameState !== 'PLAYING' || isMuted) return;
+            while (nextTime < audioCtx.currentTime + 0.1) {
+                const note = melody[noteIndex];
+                if (note.f > 0) {
+                    playTone(note.f, note.d * 0.8, 'square', 0.05); 
+                }
+                nextTime += note.d;
+                noteIndex = (noteIndex + 1) % melody.length;
+            }
+            requestAnimationFrame(scheduler);
+        }
+        scheduler();
+    }
+
+    function playJump() { playTone(300, 0.1, 'square', 0.1); playTone(600, 0.2, 'square', 0.1); }
+    function playCoin() { playTone(N.B5, 0.1, 'sine', 0.2); playTone(N.E5, 0.2, 'sine', 0.2); }
+    function playDie() { 
+        playTone(N.C5, 0.15, 'sawtooth'); 
+        setTimeout(() => playTone(N.G4, 0.15, 'sawtooth'), 150);
+        setTimeout(() => playTone(N.E4, 0.4, 'sawtooth'), 300);
+    }
+    function playWin() {
+        playTone(N.G4, 0.1, 'square');
+        setTimeout(() => playTone(N.C5, 0.1, 'square'), 100);
+        setTimeout(() => playTone(N.E5, 0.1, 'square'), 200);
+        setTimeout(() => playTone(N.G5, 0.4, 'square'), 300);
+    }
+
+    function toggleMute() {
+        isMuted = !isMuted;
+        document.getElementById('muteBtn').innerText = isMuted ? "🔇 Sonido: OFF" : "🔊 Sonido: ON";
+        if(!isMuted && gameState === 'PLAYING') {
+            audioCtx.resume();
+            startMusic();
+        }
+    }
+
+    // --- GAME LOGIC ---
+
+    function resize() {
+        canvas.width = Math.min(window.innerWidth, 800);
+        canvas.height = Math.min(window.innerHeight, 600);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    let gameState = 'START';
+    let score = 0;
+    let cameraX = 0;
+    let frame = 0;
+
+    const keys = { right: false, left: false, up: false };
+
+    const player = {
+        x: 50,
+        y: 100,
+        width: 45,
+        height: 45,
+        vx: 0,
+        vy: 0,
+        speed: 5,
+        jumpPower: -12.5,
+        grounded: false,
+        facingRight: true,
+        emoji: '👩‍⚕️'
+    };
+
+    const gravity = 0.6;
+    const friction = 0.8;
+
+    let platforms = [];
+    let enemies = [];
+    let coins = [];
+    let buildings = []; 
+    let obeliskX = 0; 
+    let goal = { x: 0, y: 0, width: 60, height: 100, reached: false };
+
+    // CATEGORÍAS DE GASTOS
+    // category: 'child' -> Rojo (Necesidades del nene)
+    // category: 'mom'   -> Violeta (Lujos de mamá)
+    const enemyTypes = [
+        // --- Gastos del Nene ---
+        { name: "Pañales Premium", emoji: "👶", category: 'child', speed: 2, yOffset: 0 },
+        { name: "Cuota del Jardín", emoji: "🏫", category: 'child', speed: 1.5, yOffset: 0 },
+        { name: "Juguete Importado", emoji: "🤖", category: 'child', speed: 2.5, yOffset: 0 },
+        { name: "Remedio Pediátrico", emoji: "💊", category: 'child', speed: 3, yOffset: 0 },
+        { name: "Cumpleañito", emoji: "🎂", category: 'child', speed: 1, yOffset: -30 },
+        
+        // --- Gastos de Mamá ---
+        { name: "Vestido de Gala", emoji: "👗", category: 'mom', speed: 2.2, yOffset: 0 },
+        { name: "Deco Trendy", emoji: "🖼️", category: 'mom', speed: 1.8, yOffset: 0 },
+        { name: "Viaje a Miami", emoji: "✈️", category: 'mom', speed: 4, yOffset: -50 }, 
+        { name: "Día de Spa", emoji: "💆‍♀️", category: 'mom', speed: 1.5, yOffset: 0 },
+        { name: "Cartera de Marca", emoji: "👜", category: 'mom', speed: 2.5, yOffset: 0 }
+    ];
+
+    function initLevel() {
+        score = 0;
+        cameraX = 0;
+        player.x = 50;
+        player.y = 100;
+        player.vx = 0;
+        player.vy = 0;
+        goal.reached = false;
+
+        platforms = [];
+        enemies = [];
+        coins = [];
+        buildings = [];
+
+        for(let i=0; i<20; i++) {
+            buildings.push({
+                x: i * 150 + Math.random() * 50,
+                y: canvas.height - (150 + Math.random() * 250),
+                w: 60 + Math.random() * 80,
+                h: 500,
+                color: Math.random() > 0.5 ? '#353b48' : '#2f3640',
+                type: Math.random() > 0.8 ? 'balconies' : 'windows'
+            });
+        }
+        obeliskX = 400;
+
+        let currentX = 0;
+        const groundY = canvas.height - 50;
+
+        platforms.push({ x: 0, y: groundY, width: 600, height: 50, type: 'floor' });
+        currentX = 650;
+
+        for (let i = 0; i < 30; i++) {
+            let width, gap, hasEnemy;
+
+            if (i < 5) {
+                width = 300; 
+                gap = 50;    
+                hasEnemy = false; 
+            } else if (i < 10) {
+                width = 200 + Math.random() * 100;
+                gap = 80 + Math.random() * 40;
+                hasEnemy = Math.random() > 0.6; 
+            } else {
+                width = 150 + Math.random() * 150;
+                gap = 90 + Math.random() * 80;
+                hasEnemy = Math.random() > 0.4;
+            }
+            
+            let yPos = groundY;
+            if (i > 3 && i % 2 === 0) yPos -= (40 + Math.random() * 80); 
+            if (yPos > canvas.height - 40) yPos = canvas.height - 60;
+            if (yPos < 180) yPos = 200;
+
+            platforms.push({ x: currentX, y: yPos, width: width, height: 50, type: 'floor' });
+
+            if (Math.random() > 0.15) {
+                const qty = Math.floor(Math.random() * 2) + 1;
+                for(let k=0; k<qty; k++) {
+                    coins.push({
+                        x: currentX + (width/2) + (k*30) - 20,
+                        y: yPos - 50 - (Math.random() * 60),
+                        width: 30,
+                        height: 30,
+                        collected: false,
+                        val: 1000 
+                    });
+                }
+            }
+
+            if (hasEnemy) {
+                const type = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+                let enemySpeed = type.speed;
+                if (i < 15) enemySpeed *= 0.7; 
+
+                enemies.push({
+                    x: currentX + 50,
+                    y: yPos - 45 + type.yOffset,
+                    width: 40, 
+                    height: 40,
+                    minX: currentX,
+                    maxX: currentX + width - 40,
+                    speed: enemySpeed,
+                    direction: 1,
+                    type: type
+                });
+            }
+
+            currentX += width + gap;
+        }
+
+        goal.x = currentX;
+        goal.y = groundY - 100;
+        platforms.push({ x: currentX - 50, y: groundY, width: 400, height: 50, type: 'floor' });
+
+        updateHUD();
+    }
+
+    function startGame() {
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        document.getElementById('startScreen').classList.add('hidden');
+        document.getElementById('gameOverScreen').classList.add('hidden');
+        document.getElementById('winScreen').classList.add('hidden');
+        gameState = 'PLAYING';
+        initLevel();
+        startMusic();
+        loop();
+    }
+
+    function resetGame() {
+        startGame();
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (['ArrowRight', 'KeyD'].includes(e.code)) keys.right = true;
+        if (['ArrowLeft', 'KeyA'].includes(e.code)) keys.left = true;
+        if (['ArrowUp', 'Space', 'KeyW'].includes(e.code) && player.grounded) {
+            player.vy = player.jumpPower;
+            player.grounded = false;
+            playJump(); 
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (['ArrowRight', 'KeyD'].includes(e.code)) keys.right = false;
+        if (['ArrowLeft', 'KeyA'].includes(e.code)) keys.left = false;
+    });
+
+    const btnLeft = document.getElementById('btnLeft');
+    const btnRight = document.getElementById('btnRight');
+    const btnJump = document.getElementById('btnJump');
+
+    const addTouch = (elem, code) => {
+        elem.addEventListener('touchstart', (e) => { e.preventDefault(); keys[code] = true; });
+        elem.addEventListener('touchend', (e) => { e.preventDefault(); keys[code] = false; });
+    };
+
+    addTouch(btnLeft, 'left');
+    addTouch(btnRight, 'right');
+    
+    btnJump.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (player.grounded) {
+            player.vy = player.jumpPower;
+            player.grounded = false;
+            playJump(); 
+        }
+    });
+
+    function update() {
+        if (gameState !== 'PLAYING') return;
+
+        if (keys.right) { player.vx++; player.facingRight = true; }
+        if (keys.left) { player.vx--; player.facingRight = false; }
+
+        player.vx *= friction;
+        player.vy += gravity;
+        player.x += player.vx;
+        player.y += player.vy;
+
+        if (player.y > canvas.height + 100) gameOver("¡Caíste en la grieta, Marina!");
+
+        player.grounded = false;
+        platforms.forEach(plat => {
+            if (player.x + 10 < plat.x + plat.width &&
+                player.x + player.width - 10 > plat.x &&
+                player.y < plat.y + plat.height &&
+                player.y + player.height > plat.y) {
+                
+                const previousY = player.y - player.vy;
+                if (previousY + player.height <= plat.y + 20) {
+                    player.grounded = true;
+                    player.vy = 0;
+                    player.y = plat.y - player.height;
+                } 
+            }
+        });
+
+        coins.forEach(coin => {
+            if (!coin.collected &&
+                player.x < coin.x + coin.width &&
+                player.x + player.width > coin.x &&
+                player.y < coin.y + coin.height &&
+                player.y + player.height > coin.y) {
+                
+                coin.collected = true;
+                score += coin.val;
+                playCoin(); 
+                updateHUD();
+            }
+        });
+
+        enemies.forEach(enemy => {
+            enemy.x += enemy.speed * enemy.direction;
+            if (enemy.x > enemy.maxX || enemy.x < enemy.minX) enemy.direction *= -1;
+
+            const buffer = 12; 
+            if (player.x + buffer < enemy.x + enemy.width - buffer &&
+                player.x + player.width - buffer > enemy.x + buffer &&
+                player.y + buffer < enemy.y + enemy.height - buffer &&
+                player.y + player.height - buffer > enemy.y + buffer) {
+                
+                gameOver(`¡Ay Marina! Pagaste: ${enemy.type.name}`);
+            }
+        });
+
+        if (player.x > goal.x && !goal.reached) {
+            goal.reached = true;
+            winGame();
+        }
+
+        const targetCamX = player.x - canvas.width / 3;
+        cameraX += (targetCamX - cameraX) * 0.1; 
+        if (cameraX < 0) cameraX = 0;
+        
+        frame++;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // --- FONDO (Parallax) ---
+        ctx.save();
+        ctx.translate(-cameraX * 0.3, 0); 
+        
+        const obeliskRealX = obeliskX; 
+        ctx.fillStyle = "#dfe6e9";
+        ctx.beginPath();
+        ctx.moveTo(obeliskRealX, canvas.height - 50);
+        ctx.lineTo(obeliskRealX + 60, canvas.height - 50);
+        ctx.lineTo(obeliskRealX + 30, canvas.height - 450);
+        ctx.fill();
+        ctx.fillStyle = "#b2bec3";
+        ctx.beginPath();
+        ctx.moveTo(obeliskRealX + 30, canvas.height - 450);
+        ctx.lineTo(obeliskRealX + 60, canvas.height - 50);
+        ctx.lineTo(obeliskRealX + 30, canvas.height - 50);
+        ctx.fill();
+
+        buildings.forEach(b => {
+            ctx.fillStyle = b.color;
+            ctx.fillRect(b.x, b.y, b.w, b.h);
+            ctx.fillStyle = "#fbc531"; 
+            for(let wy = b.y + 30; wy < canvas.height; wy += 50) {
+                 if (Math.sin(wy * b.x + b.y) > 0.2) 
+                    ctx.fillRect(b.x + 10, wy, b.w - 20, 15);
+            }
+        });
+        ctx.restore();
+
+        // --- JUEGO ---
+        ctx.save();
+        ctx.translate(-cameraX, 0);
+
+        platforms.forEach(plat => {
+            ctx.fillStyle = "#636e72"; 
+            ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+            ctx.fillStyle = "#b2bec3";
+            ctx.fillRect(plat.x, plat.y, plat.width, 10);
+            ctx.strokeStyle = "#2d3436";
+            ctx.lineWidth = 1;
+            for(let tx = plat.x; tx < plat.x + plat.width; tx += 40) {
+                ctx.strokeRect(tx, plat.y, 40, 10);
+            }
+        });
+
+        ctx.font = "24px Arial";
+        ctx.textAlign = "center";
+        coins.forEach(coin => {
+            if (!coin.collected) {
+                const floatY = Math.sin(frame * 0.1) * 5;
+                ctx.fillText("💸", coin.x + coin.width/2, coin.y + coin.height/2 + floatY);
+            }
+        });
+
+        enemies.forEach(enemy => {
+            ctx.save();
+            if (enemy.type.category === 'mom') {
+                ctx.shadowColor = "#e056fd"; 
+            } else {
+                ctx.shadowColor = "#ff3838"; 
+            }
+            ctx.shadowBlur = 15;
+
+            let posX = enemy.x + enemy.width/2;
+            let posY = enemy.y + 30;
+
+            if (enemy.direction < 0) {
+                ctx.translate(enemy.x + enemy.width, enemy.y);
+                ctx.scale(-1, 1);
+                ctx.fillText(enemy.type.emoji, -enemy.width/2, 30);
+            } else {
+                ctx.fillText(enemy.type.emoji, posX, posY);
+            }
+            ctx.restore();
+        });
+
+        ctx.font = "50px Arial";
+        ctx.fillText("🏪", goal.x + 60, goal.y + 80);
+        ctx.font = "14px 'Press Start 2P'";
+        ctx.fillStyle = "#fff";
+        ctx.fillText("SUPER", goal.x + 60, goal.y - 10);
+
+        ctx.save();
+        ctx.translate(player.x + player.width/2, player.y + player.height/2);
+        if (!player.grounded) ctx.rotate((player.vx * 0.1));
+        if (!player.facingRight) ctx.scale(-1, 1);
+        ctx.font = "40px Arial";
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "center";
+        ctx.fillText(player.emoji, 0, 0);
+        ctx.restore();
+
+        ctx.restore();
+    }
+
+    function loop() {
+        update();
+        draw();
+        if (gameState === 'PLAYING') requestAnimationFrame(loop);
+    }
+
+    function updateHUD() {
+        document.getElementById('scoreDisplay').innerText = `💸 Pesos: $${score}`;
+    }
+
+    function gameOver(reason) {
+        if(gameState === 'PLAYING') playDie(); 
+        gameState = 'GAMEOVER';
+        document.getElementById('deathReason').innerText = reason;
+        document.getElementById('gameOverScreen').classList.remove('hidden');
+    }
+
+    function winGame() {
+        if(gameState === 'PLAYING') playWin(); 
+        gameState = 'WIN';
+        document.getElementById('finalScore').innerText = `Juntaste: $${score}`;
+        document.getElementById('winScreen').classList.remove('hidden');
+    }
+
+    function idleLoop() {
+        if(gameState === 'START') {
+            draw();
+            cameraX += 1; 
+            requestAnimationFrame(idleLoop);
+        }
+    }
+
+    idleLoop();
+
+</script>
+</body>
+</html>
